@@ -6,11 +6,6 @@ const produceSchema = new Schema(
       type: String,
       required: true,
     },
-    producer: {
-      type: Schema.Types.ObjectId,
-      ref: "Producer",
-      required: true,
-    },
     title: {
       type: String,
       required: true,
@@ -92,7 +87,7 @@ const produceSchema = new Schema(
       required: true,
     },
     ROI: {
-      type: Number,
+      type: String,
       required: true,
     },
   },

@@ -5,7 +5,6 @@ declare global {
     interface Request {
       user?: Types.ObjectId;
       admin?: Types.ObjectId;
-      producer?: Types.ObjectId;
     }
   }
 }

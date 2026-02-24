@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
 import Admin from "../models/adminModel.js";
-import { LoginRequestBody } from "../interface/admin.interface.js";
+import { LoginRequestBody } from "../interface/allInterfaces.js";
 
 // Helper function to sign JWT tokens for Admin
 
@@ -63,9 +63,11 @@ export const adminLogin = async (
     const token = signToken(admin._id.toString());
     admin.password = null;
 
+    const isSecure = req.secure || req.headers["x-forwarded-proto"] === "https";
+
     res.cookie("admin_token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isSecure,
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
