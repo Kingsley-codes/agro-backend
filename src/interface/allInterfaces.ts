@@ -91,6 +91,10 @@ export interface PaystackVerifyResponse {
 export interface PaystackEventData {
   reference: string;
   paid_at: string; // ISO date string
+  metadata: {
+    units: number;
+    produce_title: string;
+  };
 }
 
 // export const verifyTransaction = async (reference: string) => {

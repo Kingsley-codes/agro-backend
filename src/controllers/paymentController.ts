@@ -1,4 +1,4 @@
-import { Request, response, Response } from "express";
+import { Request, Response } from "express";
 import User from "../models/userModel.js";
 import {
   generatePaymentID,
@@ -12,55 +12,68 @@ import {
 } from "../utils/paystackUtils.js";
 import Payment from "../models/paymentModel.js";
 import crypto from "crypto";
+import Produce from "../models/produceModel.js";
+import Investment from "../models/investmentModel.js";
 
 export const initializePayment = async (req: Request, res: Response) => {
   try {
-    const { menteeId, menteeEmail, paymentType, amount } = req.body;
+    const { userId, userEmail, produceId, amount, units } = req.body;
 
-    if (!menteeId || !menteeEmail || !paymentType || !amount) {
+    if (!userId || !userEmail || !produceId || !amount) {
       return res.status(400).json({
         success: false,
         message:
-          "Missing required fields: menteeId, menteeEmail, paymentType, amount",
+          "Missing required fields: userId, userEmail, paymentType, amount",
       });
     }
 
-    const mentee = await User.findById(menteeId);
+    const user = await User.findById(userId);
 
-    if (!mentee) {
+    if (!user) {
       return res.status(404).json({
         success: false,
-        message: "Mentee account not found",
+        message: "User account not found",
       });
     }
 
-    const menteeName = mentee.firstName + "" + mentee.lastName;
+    const produce = await Produce.findById(produceId);
+
+    if (!produce) {
+      return res.status(404).json({
+        success: false,
+        message: "Produce not found",
+      });
+    }
+
+    const userName = user.firstName + " " + user.lastName;
 
     const amountKobo = Math.round(Number(amount) * 100);
 
     const paymentID = generatePaymentID();
 
     const transactionData = {
-      email: menteeEmail,
+      email: userEmail,
       amount: amountKobo,
       reference: generateReference(),
       metadata: {
-        mentee_id: mentee,
-        mentee_name: menteeName,
-        mentee_email: menteeEmail,
-        payment_type: paymentType,
+        user_id: user,
+        user_name: userName,
+        user_email: userEmail,
+        produce_id: produceId,
         amount: amount,
+        units: units,
         payment_id: paymentID,
+        produce_title: produce.title,
         custom_fields: [
           {
-            display_name: "Mentee Name",
-            variable_name: "mentee_name",
-            value: menteeName,
+            display_name: "User Name",
+            variable_name: "user_name",
+            value: userName,
           },
           {
-            display_name: "Payment Type",
-            variable_name: "payment_type",
-            value: paymentType,
+            display_name: "Produce Title",
+            variable_name: "produce_title",
+            value: produce.title,
           },
           {
             display_name: "Amount",
@@ -70,8 +83,8 @@ export const initializePayment = async (req: Request, res: Response) => {
         ],
       },
 
-      callback_url: `${process.env.FRONTEND_URL}/donors/verifyPayment`,
-      // callback_url: "http://localhost:3000/donors/verifyPayment"
+      callback_url: `${process.env.FRONTEND_URL}/opportunities/verifyPayment`,
+      // callback_url: "http://localhost:3000/opportunities/verifyPayment"
     };
 
     // Call Paystack API
@@ -88,10 +101,10 @@ export const initializePayment = async (req: Request, res: Response) => {
     }
 
     const payment = await Payment.create({
-      mentee: menteeId,
+      user: userId,
       paymentID: paymentID,
-      menteeEmail: menteeEmail,
-      paymentType: paymentType,
+      userEmail: userEmail,
+      produce: produceId,
       amount: amount,
       transactionRef: paystackResponse.data.reference,
     });
@@ -175,30 +188,57 @@ export const verifyPayment = async (req: Request, res: Response) => {
     if (transactionData.status === "success") {
       if (payment.paymentStatus === "Completed") {
         // ✅ Handle second verification attempt gracefully
+
+        const investment = await Investment.findOne({ payment: payment._id });
+
         return res.status(200).json({
           success: true,
           message: "Transaction already verified",
           data: {
             paymentID: payment.paymentID,
-            menteeEmail: payment.menteeEmail,
+            userEmail: payment.userEmail,
             amount: payment.amount,
-            paymentType: payment.paymentType,
+            investment,
           },
         });
       }
+
       payment.paymentStatus = "Completed";
       payment.date = new Date();
 
       await payment.save();
+
+      const produce = await Produce.findById(payment.produce);
+
+      if (!produce) {
+        return res.status(404).json({
+          success: false,
+          message: "Associated produce not found",
+        });
+      }
+
+      const newInvestment = await Investment.create({
+        user: payment.user,
+        payment: payment._id,
+        produce: payment.produce,
+        units: transactionData.metadata.units,
+        title: transactionData.metadata.produce_title,
+        totalPrice: payment.amount,
+        customerEmail: payment.userEmail,
+        orderStatus: "confirmed",
+        transactionRef: payment.transactionRef,
+        duration: produce.duration,
+        ROI: produce.ROI,
+      });
 
       return res.status(200).json({
         success: true,
         message: "Transaction verified successfully",
         data: {
           paymentID: payment.paymentID,
-          menteeEmail: payment.menteeEmail,
+          userEmail: payment.userEmail,
           amount: payment.amount,
-          paymentType: payment.paymentType,
+          newInvestment,
         },
       });
     }

@@ -1,6 +1,8 @@
 import crypto from "crypto";
 import Payment from "../models/paymentModel.js";
 import { PaystackEventData } from "../interface/allInterfaces.js";
+import Produce from "../models/produceModel.js";
+import Investment from "../models/investmentModel.js";
 
 // Helper function to generate unique donation IDs
 export const generatePaymentID = () =>
@@ -30,6 +32,26 @@ export const handleChargeSuccess = async (eventData: PaystackEventData) => {
     payment.date = new Date(eventData.paid_at);
     payment.paymentStatus = "Completed";
     await payment.save();
+
+    const produce = await Produce.findById(payment.produce);
+
+    if (!produce) {
+      throw new Error("Associated produce not found");
+    }
+
+    const newInvestment = await Investment.create({
+      user: payment.user,
+      payment: payment._id,
+      produce: payment.produce,
+      units: eventData.metadata.units,
+      title: eventData.metadata.produce_title,
+      totalPrice: payment.amount,
+      customerEmail: payment.userEmail,
+      orderStatus: "confirmed",
+      transactionRef: payment.transactionRef,
+      duration: produce.duration,
+      ROI: produce.ROI,
+    });
 
     // Send notification email
     //     await sendDonationAcknowledgement(donation)

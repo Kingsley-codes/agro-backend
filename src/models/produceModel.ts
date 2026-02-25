@@ -29,8 +29,8 @@ const produceSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "rejected", "active", "suspended", "sold out"],
-      default: "pending",
+      enum: ["active", "suspended", "sold out"],
+      default: "active",
     },
     remainingUnit: {
       type: Number,
@@ -87,7 +87,7 @@ const produceSchema = new Schema(
       required: true,
     },
     ROI: {
-      type: String,
+      type: Number,
       required: true,
     },
   },

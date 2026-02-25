@@ -2,9 +2,14 @@ import { Schema, model, InferSchemaType, HydratedDocument } from "mongoose";
 
 const PaymentSchema = new Schema(
   {
-    mentee: {
+    user: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      required: true,
+    },
+    produce: {
+      type: String,
+      ref: "Produce",
       required: true,
     },
     paymentID: {
@@ -12,14 +17,9 @@ const PaymentSchema = new Schema(
       required: true,
       unique: true,
     },
-    menteeEmail: {
+    userEmail: {
       type: String,
       required: true,
-    },
-    paymentType: {
-      type: String,
-      enum: ["coins", "premium"],
-      default: "coins",
     },
     amount: {
       type: Number,
