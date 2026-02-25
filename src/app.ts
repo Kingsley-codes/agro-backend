@@ -23,7 +23,6 @@ const limiter = rateLimit({
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   process.env.FRONTEND_LOCALHOST,
-  "https://www.meride-haven.com",
 ].filter(Boolean) as string[];
 
 const app = express();

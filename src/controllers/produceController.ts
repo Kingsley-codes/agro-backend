@@ -3,7 +3,16 @@ import Produce from "../models/produceModel.js";
 
 export const getAllProduce = async (req: Request, res: Response) => {
   try {
-    const produceList = await Produce.find().sort({ createdAt: -1 });
+    const { isFeatured } = req.query;
+
+    const filter: any = {};
+
+    // only apply filter if it was sent
+    if (typeof isFeatured === "string") {
+      filter.isFeatured = isFeatured === "true";
+    }
+
+    const produceList = await Produce.find(filter).sort({ createdAt: -1 });
 
     // Calculate percentage remaining for each produce and add it to the response
     const produceWithPercentage = produceList.map((produce) => {
