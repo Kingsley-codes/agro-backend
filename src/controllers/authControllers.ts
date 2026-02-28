@@ -169,7 +169,7 @@ export const login = async (
     res.cookie("user_token", token, {
       httpOnly: true,
       secure: isSecure,
-      sameSite: "strict",
+      sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
