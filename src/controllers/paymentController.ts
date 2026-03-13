@@ -54,7 +54,7 @@ const handleWalletPayment = async (
       produce: produceId,
       userEmail: email,
       amount: amount,
-      paymentMethod: "Wallet",
+      paymentMethod: "wallet",
       paymentStatus: "Completed",
     });
 
@@ -254,6 +254,7 @@ export const initializePayment = async (req: Request, res: Response) => {
         userEmail: email,
         produce: produceId,
         amount: amount,
+        paymentMethod: paymentMethod,
         transactionRef: paystackResponse.data.reference,
       });
 
