@@ -35,8 +35,8 @@ export const userAuthenticate = async (
     const currentUser = await User.findById(decoded.id);
     if (!currentUser) throw new Error("User not found");
 
-    return (req.user = currentUser._id);
-    next();
+    req.user = currentUser._id;
+    return next();
   } catch (err: any) {
     console.error("Protect error:", err);
     const message =
@@ -76,8 +76,8 @@ export const adminAuthenticate = async (
     const currentUser = await Admin.findById(decoded.id);
     if (!currentUser) throw new Error("Admin not found");
 
-    return (req.admin = currentUser._id);
-    next();
+    req.admin = currentUser._id;
+    return next();
   } catch (err: any) {
     console.error("Protect error:", err);
     const message =

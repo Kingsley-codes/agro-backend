@@ -11,6 +11,7 @@ export const fetchUserProfile = async (req: Request, res: Response) => {
         message: "Unauthorized",
       });
     }
+    console.log("fetching profile");
 
     const user = await User.findById(userId).select("-password");
 
