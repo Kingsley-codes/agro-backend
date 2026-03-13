@@ -12,6 +12,7 @@ import adminUsersRouter from "./routes/adminUsersRoutes.js";
 import adminProduceRouter from "./routes/adminProduceRoutes.js";
 import { sanitize } from "./middleware/mongodbSantizer.js";
 import paymentRouter from "./routes/paymentRoutes.js";
+import userRouter from "./routes/userRoutes.js";
 
 // Rate limiting configuration
 const limiter = rateLimit({
@@ -56,6 +57,7 @@ app.use((req, res, next) => {
 
 // Define API routes
 app.use("/api/auth", authRouter); // Register auth routes
+app.use("/api/user", userRouter); // Register user routes
 app.use("/api/produce", produceRouter); // Register produce routes
 app.use("/api/admin/auth", adminAuthRouter); // Register Admin auth routes
 app.use("/api/admin/produce", adminProduceRouter); // Register produce routes
