@@ -280,9 +280,12 @@ export const initializePayment = async (req: Request, res: Response) => {
   }
 };
 
-export const verifyPayment = async (req: Request, res: Response) => {
+export const verifyPayment = async (
+  req: Request<{ reference: string }>,
+  res: Response,
+) => {
   try {
-    const { reference } = req.body;
+    const { reference } = req.params;
 
     if (!reference) {
       return res.status(400).json({
