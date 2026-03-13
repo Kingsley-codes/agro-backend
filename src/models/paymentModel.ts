@@ -34,7 +34,7 @@ const PaymentSchema = new Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["Card", "Bank Transfer", "Wallet"],
+      enum: ["card", "bank", "wallet"],
       required: true,
     },
     paymentStatus: {
