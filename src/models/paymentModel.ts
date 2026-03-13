@@ -32,6 +32,11 @@ const PaymentSchema = new Schema(
     transactionRef: {
       type: String,
     },
+    paymentMethod: {
+      type: String,
+      enum: ["Card", "Bank Transfer", "Wallet"],
+      required: true,
+    },
     paymentStatus: {
       type: String,
       enum: ["Pending", "Refunded", "Completed", "Cancelled", "Failed"],

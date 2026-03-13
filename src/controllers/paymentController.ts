@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import User from "../models/userModel.js";
 import {
   generatePaymentID,
+  generateOrderID,
   generateReference,
   handleChargeFailed,
   handleChargeSuccess,
@@ -14,16 +15,110 @@ import Payment from "../models/paymentModel.js";
 import crypto from "crypto";
 import Produce from "../models/produceModel.js";
 import Investment from "../models/investmentModel.js";
+import Wallet from "../models/walletModel.js";
+import mongoose from "mongoose";
+
+const handleWalletPayment = async (
+  userId: string,
+  amount: number,
+  email: string,
+  produceId: string,
+  produceTitle: string,
+  units: number,
+  duration: number,
+  ROI: number,
+) => {
+  const session = await mongoose.startSession();
+
+  try {
+    const userWallet = await Wallet.findOneAndUpdate(
+      { user: userId },
+      { $inc: { balance: -Number(amount) } },
+      { new: true, session },
+    );
+
+    if (!userWallet) {
+      throw new Error("User wallet not found");
+    }
+
+    // Prevent negative balance
+    if (userWallet.balance < 0) {
+      throw new Error("Insufficient wallet balance");
+    }
+
+    const paymentID = generatePaymentID();
+
+    const newPayment = new Payment({
+      user: userId,
+      paymentID: paymentID,
+      produce: produceId,
+      userEmail: email,
+      amount: amount,
+      paymentMethod: "Wallet",
+      paymentStatus: "Completed",
+    });
+
+    await newPayment.save({ session });
+
+    const newInvestment = await Investment.create(
+      {
+        user: userId,
+        produce: produceId,
+        orderID: generateOrderID(),
+        payment: newPayment._id!,
+        title: produceTitle,
+        units: units,
+        totalPrice: amount,
+        orderStatus: "confirmed",
+        customerEmail: email,
+        duration: duration,
+        ROI: ROI,
+      },
+      { session },
+    );
+
+    // 5️⃣ Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    return {
+      paymentID,
+      newInvestment,
+    };
+  } catch (error) {
+    // ❌ Rollback everything
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+};
 
 export const initializePayment = async (req: Request, res: Response) => {
   try {
-    const { userId, userEmail, produceId, amount, units } = req.body;
+    const {
+      userId,
+      lastName,
+      firstName,
+      address,
+      paymentMethod,
+      email,
+      produceId,
+      amount,
+      units,
+    } = req.body;
 
-    if (!userId || !userEmail || !produceId || !amount) {
+    if (!paymentMethod || !amount || !produceId || !units) {
       return res.status(400).json({
         success: false,
         message:
-          "Missing required fields: userId, userEmail, paymentType, amount",
+          "Missing required fields: units, produceId, paymentMethod, amount",
+      });
+    }
+
+    if (!userId && (!lastName || !firstName || !email || !address)) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields: lastName, firstName, email, address",
       });
     }
 
@@ -45,81 +140,135 @@ export const initializePayment = async (req: Request, res: Response) => {
       });
     }
 
-    const userName = user.firstName + " " + user.lastName;
+    const expectedAmount = produce.price * units;
 
-    const amountKobo = Math.round(Number(amount) * 100);
-
-    const paymentID = generatePaymentID();
-
-    const transactionData = {
-      email: userEmail,
-      amount: amountKobo,
-      reference: generateReference(),
-      metadata: {
-        user_id: user,
-        user_name: userName,
-        user_email: userEmail,
-        produce_id: produceId,
-        amount: amount,
-        units: units,
-        payment_id: paymentID,
-        produce_title: produce.title,
-        custom_fields: [
-          {
-            display_name: "User Name",
-            variable_name: "user_name",
-            value: userName,
-          },
-          {
-            display_name: "Produce Title",
-            variable_name: "produce_title",
-            value: produce.title,
-          },
-          {
-            display_name: "Amount",
-            variable_name: "amount",
-            value: amount,
-          },
-        ],
-      },
-
-      callback_url: `${process.env.FRONTEND_URL}/opportunities/verifyPayment`,
-      // callback_url: "http://localhost:3000/opportunities/verifyPayment"
-    };
-
-    // Call Paystack API
-    const paystackResponse =
-      await initializePaystackTransaction(transactionData);
-
-    if (!paystackResponse.status || !("data" in paystackResponse)) {
+    if (Number(amount) !== expectedAmount) {
       return res.status(400).json({
         success: false,
-        message: "Failed to initialize transaction",
-        error: paystackResponse.message,
-        reference: transactionData.reference,
+        message: "Amount does not match expected value",
       });
     }
 
-    const payment = await Payment.create({
-      user: userId,
-      paymentID: paymentID,
-      userEmail: userEmail,
-      produce: produceId,
-      amount: amount,
-      transactionRef: paystackResponse.data.reference,
-    });
+    if (paymentMethod === "wallet") {
+      try {
+        const { paymentID, newInvestment } = await handleWalletPayment(
+          userId,
+          amount,
+          email,
+          produceId,
+          produce.title,
+          units,
+          produce.duration,
+          produce.ROI,
+        );
 
-    // Return success response
-    return res.status(200).json({
-      success: true,
-      message: "Transaction initialized successfully",
-      data: {
-        authorization_url: paystackResponse.data.authorization_url,
-        access_code: paystackResponse.data.access_code,
-        reference: paystackResponse.data.reference,
-        paymentID: payment.paymentID,
-      },
-    });
+        return res.status(200).json({
+          success: true,
+          message: "Payment successful using wallet",
+          data: {
+            paymentID,
+            newInvestment,
+          },
+        });
+      } catch (error: any) {
+        return res.status(500).json({
+          success: false,
+          message: "Failed to process wallet payment",
+          error: error.message,
+        });
+      }
+    } else {
+      const userName = firstName + " " + lastName;
+
+      const amountKobo = Math.round(Number(amount) * 100);
+
+      const paymentID = generatePaymentID();
+
+      const transactionData = {
+        email: email,
+        amount: amountKobo,
+        reference: generateReference(),
+        metadata: {
+          user_id: userId || "guest",
+          user_name: userName,
+          user_email: email,
+          produce_id: produceId,
+          amount: amount,
+          units: units,
+          payment_id: paymentID,
+          produce_title: produce.title,
+          custom_fields: [
+            {
+              display_name: "User Name",
+              variable_name: "user_name",
+              value: userName,
+            },
+            {
+              display_name: "Produce Title",
+              variable_name: "produce_title",
+              value: produce.title,
+            },
+            {
+              display_name: "Amount",
+              variable_name: "amount",
+              value: amount,
+            },
+          ],
+        },
+
+        callback_url: `${process.env.FRONTEND_URL}/opportunities/verifyPayment`,
+        // callback_url: "http://localhost:3000/opportunities/verifyPayment"
+      };
+
+      // Call Paystack API
+      const paystackResponse =
+        await initializePaystackTransaction(transactionData);
+
+      if (!paystackResponse.status || !("data" in paystackResponse)) {
+        return res.status(400).json({
+          success: false,
+          message: "Failed to initialize transaction",
+          error: paystackResponse.message,
+          reference: transactionData.reference,
+        });
+      }
+
+      let finalUserId;
+
+      if (!userId) {
+        const newUser = await User.create({
+          firstName,
+          lastName,
+          email,
+          address,
+        });
+
+        finalUserId = newUser._id;
+      } else {
+        finalUserId = userId;
+      }
+
+      const payment = await Payment.create({
+        user: finalUserId,
+        paymentID: paymentID,
+        userEmail: email,
+        produce: produceId,
+        amount: amount,
+        transactionRef: paystackResponse.data.reference,
+      });
+
+      // Return success response
+      return res.status(200).json({
+        success: true,
+        message: "Transaction initialized successfully",
+        data: {
+          authorization_url: paystackResponse.data.authorization_url,
+          access_code: paystackResponse.data.access_code,
+          reference: paystackResponse.data.reference,
+          paymentID: payment.paymentID,
+        },
+      });
+    }
   } catch (error: any) {
     console.log("Error initializing payment:", error);
 
@@ -220,6 +369,7 @@ export const verifyPayment = async (req: Request, res: Response) => {
       const newInvestment = await Investment.create({
         user: payment.user,
         payment: payment._id,
+        orderID: generateOrderID(),
         produce: payment.produce,
         units: transactionData.metadata.units,
         title: transactionData.metadata.produce_title,

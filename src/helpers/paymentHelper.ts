@@ -6,7 +6,10 @@ import Investment from "../models/investmentModel.js";
 
 // Helper function to generate unique donation IDs
 export const generatePaymentID = () =>
-  "ENF-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+  "GRP-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+
+export const generateOrderID = () =>
+  "GRO-" + Math.random().toString(36).substring(2, 10).toUpperCase();
 
 export const generateReference = (prefix = "ps") => {
   const unique = crypto.randomBytes(12).toString("hex"); // 12-char random string
@@ -43,6 +46,7 @@ export const handleChargeSuccess = async (eventData: PaystackEventData) => {
       user: payment.user,
       payment: payment._id,
       produce: payment.produce,
+      orderID: generateOrderID(),
       units: eventData.metadata.units,
       title: eventData.metadata.produce_title,
       totalPrice: payment.amount,
