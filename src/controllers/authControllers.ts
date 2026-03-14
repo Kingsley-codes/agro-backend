@@ -1,15 +1,13 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import bcrypt from "bcrypt";
 import User from "../models/userModel.js";
 import jwt, { SignOptions } from "jsonwebtoken";
 import validator from "validator";
 import {
   LoginRequestBody,
-  producerOnboardRequestBody,
-  RefereeInput,
   RegisterRequestBody,
 } from "../interface/allInterfaces.js";
-import { uploadToCloudinary } from "../middleware/uploadMiddleware.js";
+import passport from "passport";
 
 // Helper function to sign JWT tokens for User
 const signToken = (id: string): string => {
@@ -187,4 +185,51 @@ export const login = async (
       stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
     });
   }
+};
+
+export const logout = (req: Request, res: Response) => {
+  res.clearCookie("user_token", {
+    httpOnly: true,
+    secure: req.secure || req.headers["x-forwarded-proto"] === "https",
+    sameSite: "none",
+  });
+  res.status(200).json({
+    status: "success",
+    message: "Logged out successfully",
+  });
+};
+
+export const handleGoogleLogin = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+    session: false,
+  })(req, res, next);
+};
+
+export const googleAuthCallback = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  passport.authenticate("google", { session: false }, (err, user, info) => {
+    if (err) return next(err);
+    if (!user)
+      return res.redirect(
+        `${process.env.FRONTEND_URL}/login?error=oauth_failed`,
+      );
+
+    const token = signToken(user.id);
+    const isSecure = req.secure || req.headers["x-forwarded-proto"] === "https";
+    res.cookie("user_token", token, {
+      httpOnly: true,
+      secure: isSecure,
+      sameSite: "none",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+    res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
+  })(req, res, next);
 };

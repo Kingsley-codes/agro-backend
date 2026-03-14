@@ -13,12 +13,19 @@ const userSchema = new Schema(
       required: true,
       trim: true,
     },
+    googleId: {
+      type: String,
+      unique: true,
+    },
     email: {
       type: String,
       required: true,
       unique: true,
       trim: true,
       lowercase: true,
+    },
+    oauthProviders: {
+      google: String,
     },
     farmerID: {
       type: String,
