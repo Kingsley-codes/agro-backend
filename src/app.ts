@@ -36,6 +36,8 @@ app.use(
   }),
 );
 
+app.set("trust proxy", 1);
+
 app.use("/api", express.json());
 app.use("/api", compression());
 app.use("/api", cookieParser());
