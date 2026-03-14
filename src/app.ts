@@ -2,6 +2,7 @@ import express from "express";
 import compression from "compression";
 import "dotenv/config";
 import helmet from "helmet";
+import passport from "passport";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import cors from "cors";
@@ -13,6 +14,7 @@ import adminProduceRouter from "./routes/adminProduceRoutes.js";
 import { sanitize } from "./middleware/mongodbSantizer.js";
 import paymentRouter from "./routes/paymentRoutes.js";
 import userRouter from "./routes/userRoutes.js";
+import "./config/passport.js";
 
 // Rate limiting configuration
 const limiter = rateLimit({
@@ -38,6 +40,7 @@ app.use(
 
 app.set("trust proxy", 1);
 
+app.use("/api", passport.initialize());
 app.use("/api", express.json());
 app.use("/api", compression());
 app.use("/api", cookieParser());
