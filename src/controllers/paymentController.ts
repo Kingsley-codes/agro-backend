@@ -392,6 +392,7 @@ export const verifyPayment = async (
           paymentID: payment.paymentID,
           userEmail: payment.userEmail,
           amount: payment.amount,
+          paymentMethod: payment.paymentMethod,
           newInvestment,
         },
       });
