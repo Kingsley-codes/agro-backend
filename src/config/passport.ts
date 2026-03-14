@@ -42,7 +42,8 @@ passport.use(
             if (!user.profilePhoto?.url && avatar) {
               user.profilePhoto = { publicId: "", url: avatar };
             }
-            await user.save();
+            // Skip full re-validation — we're only updating OAuth fields
+            await user.save({ validateBeforeSave: false });
           } else {
             // 3. Brand new user — create an account
             user = await User.create({
