@@ -1,8 +1,10 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
 import Admin from "../models/adminModel.js";
 import { LoginRequestBody } from "../interface/allInterfaces.js";
+import { AdminJwtPayload } from "../config/passport.js";
+import passport from "passport";
 
 // Helper function to sign JWT tokens for Admin
 
@@ -86,4 +88,44 @@ export const adminLogin = async (
       stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
     });
   }
+};
+
+export const handleGoogleLogin = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  passport.authenticate("google-admin", {
+    scope: ["profile", "email"],
+    session: false,
+  })(req, res, next);
+};
+
+export const googleAuthCallback = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  passport.authenticate(
+    "google-admin",
+    { session: false },
+    (err: Error | null, user: AdminJwtPayload | false) => {
+      if (err) return next(err);
+      if (!user)
+        return res.redirect(
+          `${process.env.FRONTEND_URL}/login?error=oauth_failed`,
+        );
+
+      const token = signToken(user.id);
+      const isSecure =
+        req.secure || req.headers["x-forwarded-proto"] === "https";
+      res.cookie("user_token", token, {
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: "none",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+      res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
+    },
+  )(req, res, next);
 };

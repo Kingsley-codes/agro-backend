@@ -1,12 +1,12 @@
 import express from "express";
 import {
   adminLogin,
+  googleAuthCallback,
+  handleGoogleLogin,
   // requestPasswordReset,
   // verifyResetCode,
   // resetPassword,
   // resendResetCode,
-  // handleGoogleLogin,
-  // googleAuthCallback,
 } from "../controllers/adminAuthController.js";
 
 const adminAuthRouter = express.Router();
@@ -24,9 +24,8 @@ adminAuthRouter.post("/login", adminLogin);
 // adminAuthRouter.post('/resend-reset-code', resendResetCode);   // Resend code
 
 // // Google OAuth
-// adminAuthRouter.get('/google', handleGoogleLogin);
+adminAuthRouter.get("/google", handleGoogleLogin);
 
-// adminAuthRouter.get('/google/callback', googleAuthCallback);
+adminAuthRouter.get("/google/callback", googleAuthCallback);
 
 export default adminAuthRouter;
-

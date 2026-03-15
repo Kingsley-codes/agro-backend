@@ -13,6 +13,13 @@ const adminSchema = new Schema(
       required: true,
       trim: true,
     },
+    googleId: {
+      type: String,
+      sparse: true,
+    },
+    oauthProviders: {
+      google: { type: String },
+    },
     email: {
       type: String,
       required: true,
